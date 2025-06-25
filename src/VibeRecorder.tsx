@@ -3,7 +3,13 @@ import { supabase } from "./supabaseClient";
 import { getAnonymousId } from "./utils/user";
 
 // UTILE POUR MODÉRATION IA
-async function transcribeAndModerateVibe({ vocalId, url }) {
+async function transcribeAndModerateVibe({
+  vocalId,
+  url,
+}: {
+  vocalId: string;
+  url: string;
+}) {
   try {
     const resp = await fetch(
       "https://gkbcjhypgsvpipjeginw.functions.supabase.co/transcribe-vibe",
@@ -20,7 +26,11 @@ async function transcribeAndModerateVibe({ vocalId, url }) {
   }
 }
 
-export default function VibeRecorder({ onSent }) {
+type VibeRecorderProps = {
+  onSent?: () => void;
+};
+
+export default function VibeRecorder({ onSent }: VibeRecorderProps) {
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [hashtags, setHashtags] = useState("");
@@ -31,9 +41,9 @@ export default function VibeRecorder({ onSent }) {
   const [analyzing, setAnalyzing] = useState(false);
 
   // Typage pour TS
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const timeoutId = useRef(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timeoutId = useRef<number | null>(null);
 
   function sparkle() {
     document.body.classList.add("sparkle");
@@ -41,14 +51,14 @@ export default function VibeRecorder({ onSent }) {
   }
 
   // Upload
-  const handleUpload = async (blob) => {
+  const handleUpload = async (blob: Blob) => {
     setUploading(true);
     setMsg("");
-    let latitude = null,
-      longitude = null;
+    let latitude: number | null = null,
+      longitude: number | null = null;
     if (withGeo) {
       try {
-        const pos = await new Promise((res, rej) =>
+        const pos = await new Promise<GeolocationPosition>((res, rej) =>
           navigator.geolocation.getCurrentPosition(res, rej, { timeout: 7000 })
         );
         latitude = pos.coords.latitude;
@@ -137,17 +147,17 @@ export default function VibeRecorder({ onSent }) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new window.MediaRecorder(stream);
       audioChunksRef.current = [];
-      mediaRecorder.ondataavailable = (e) =>
+      mediaRecorder.ondataavailable = (e: BlobEvent) =>
         audioChunksRef.current.push(e.data);
       mediaRecorder.onstop = async () => {
-        clearTimeout(timeoutId.current);
+        if (timeoutId.current) clearTimeout(timeoutId.current);
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         await handleUpload(blob);
       };
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setRecording(true);
-      timeoutId.current = setTimeout(() => {
+      timeoutId.current = window.setTimeout(() => {
         if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
       }, 20000);
     } else {
