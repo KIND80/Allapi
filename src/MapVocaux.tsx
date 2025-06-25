@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import { Link } from "react-router-dom";
@@ -6,8 +6,28 @@ import { motion } from "framer-motion";
 import { getAnonymousId } from "./utils/user";
 import ReplyRecorder from "./ReplyRecorder";
 
+// Type pour les profils (avatar, pseudo, etc)
+type Profil = {
+  avatar_url?: string;
+  pseudo?: string;
+};
+
+// Type pour un vocal
+type Vocal = {
+  id: string;
+  url: string;
+  latitude: number;
+  longitude: number;
+  created_at?: string;
+  ville?: string;
+  langue?: string;
+  hashtags?: string[];
+  user_id?: string;
+  profils?: Profil;
+};
+
 // Génère une icône Leaflet avec avatar ou par défaut
-function avatarIcon(url) {
+function avatarIcon(url?: string) {
   return new L.Icon({
     iconUrl: url || "https://api.dicebear.com/7.x/pixel-art/svg?seed=Anon",
     iconSize: [40, 40],
@@ -17,15 +37,19 @@ function avatarIcon(url) {
   });
 }
 
-export default function MapVocaux({ vocaux: vocauxProp }) {
+type MapVocauxProps = {
+  vocaux: Vocal[];
+};
+
+export default function MapVocaux({ vocaux: vocauxProp }: MapVocauxProps) {
   const myId = getAnonymousId?.() || "";
-  const [vocaux, setVocaux] = useState([]);
-  const [center, setCenter] = useState([48.858, 2.346]);
-  const [zoom, setZoom] = useState(3);
+  const [vocaux, setVocaux] = useState<Vocal[]>([]);
+  const [center, setCenter] = useState<[number, number]>([48.858, 2.346]);
+  const [zoom, setZoom] = useState<number>(3);
 
   useEffect(() => {
     const filtered = (vocauxProp || []).filter(
-      (v) =>
+      (v: Vocal) =>
         typeof v.latitude === "number" &&
         typeof v.longitude === "number" &&
         !isNaN(v.latitude) &&
@@ -63,7 +87,7 @@ export default function MapVocaux({ vocaux: vocauxProp }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="© OpenStreetMap contributors"
         />
-        {vocaux.map((v) => (
+        {vocaux.map((v: Vocal) => (
           <Marker
             key={v.id}
             position={[v.latitude, v.longitude]}

@@ -2,19 +2,43 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import { getAnonymousId } from "./utils/user";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 const avatarBase = "https://api.dicebear.com/7.x/pixel-art/svg?seed=";
 
-export default function ProfilePage({ userId: propUserId }) {
-  const { userId: paramUserId } = useParams();
-  const myId = getAnonymousId();
-  const userId = propUserId || paramUserId || myId;
+// TYPES
+type Profil = {
+  user_id: string;
+  avatar_url?: string;
+  pseudo?: string;
+  bio?: string;
+  ville?: string;
+  birthYear?: number;
+  genre?: string;
+};
 
-  const [profil, setProfil] = useState(null);
+type Vibe = {
+  id: string;
+  url: string;
+  hashtags?: string[];
+  created_at?: string;
+  // Ajoute d'autres propriétés si besoin
+};
+
+type ProfilePageProps = {
+  userId?: string;
+};
+
+export default function ProfilePage({ userId: propUserId }: ProfilePageProps) {
+  const { userId: paramUserId } = useParams<{ userId: string }>();
+  const myId = getAnonymousId();
+  // Pour éviter le "shadowing", on choisit un autre nom
+  const selectedUserId = propUserId || paramUserId || myId;
+
+  const [profil, setProfil] = useState<Profil | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMe, setIsMe] = useState(false);
-  const [vibes, setVibes] = useState([]);
+  const [vibes, setVibes] = useState<Vibe[]>([]);
   const [followers, setFollowers] = useState(0);
   const [following, setFollowing] = useState(0);
 
@@ -25,36 +49,36 @@ export default function ProfilePage({ userId: propUserId }) {
       const { data } = await supabase
         .from("profils")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", selectedUserId)
         .single();
-      setProfil(data);
-      setIsMe(userId === myId);
+      setProfil(data as Profil | null);
+      setIsMe(selectedUserId === myId);
 
       // Stats vibes
       const { data: vibesData } = await supabase
         .from("vocaux")
         .select("*")
-        .eq("user_id", userId);
-      setVibes(vibesData || []);
+        .eq("user_id", selectedUserId);
+      setVibes((vibesData || []) as Vibe[]);
 
       // Followers
       const { count: followersCount } = await supabase
         .from("abonnements")
         .select("*", { count: "exact", head: true })
-        .eq("following_id", userId);
+        .eq("following_id", selectedUserId);
       setFollowers(followersCount || 0);
 
       // Following
       const { count: followingCount } = await supabase
         .from("abonnements")
         .select("*", { count: "exact", head: true })
-        .eq("follower_id", userId);
+        .eq("follower_id", selectedUserId);
       setFollowing(followingCount || 0);
 
       setLoading(false);
     }
     fetchProfile();
-  }, [userId, myId]);
+  }, [selectedUserId, myId]);
 
   if (loading) {
     return (
@@ -81,14 +105,14 @@ export default function ProfilePage({ userId: propUserId }) {
     >
       <div className="flex flex-col sm:flex-row gap-6 items-center">
         <img
-          src={profil.avatar_url || avatarBase + userId}
+          src={profil.avatar_url || avatarBase + selectedUserId}
           alt="Avatar"
           className="w-24 h-24 rounded-full border-4 border-indigo-300 shadow-lg"
         />
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <span className="font-bold text-2xl text-indigo-800">
-              @{profil.pseudo}
+              @{profil.pseudo || "Anonyme"}
             </span>
             {isMe && (
               <span className="px-2 py-0.5 bg-indigo-200 rounded-full text-xs text-indigo-700">
@@ -104,14 +128,14 @@ export default function ProfilePage({ userId: propUserId }) {
           </div>
           <div className="mt-4 flex gap-4 text-center">
             <Link
-              to={`/follows/${userId}/followers`}
+              to={`/follows/${selectedUserId}/followers`}
               className="text-indigo-700 hover:underline"
             >
               <span className="font-bold">{followers}</span>
               <span className="ml-1">abonnés</span>
             </Link>
             <Link
-              to={`/follows/${userId}/following`}
+              to={`/follows/${selectedUserId}/following`}
               className="text-indigo-700 hover:underline"
             >
               <span className="font-bold">{following}</span>
@@ -136,7 +160,7 @@ export default function ProfilePage({ userId: propUserId }) {
           <div className="text-gray-400">Aucune vibe pour l’instant.</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {vibes.map((v) => (
+            {vibes.map((v: Vibe) => (
               <div
                 key={v.id}
                 className="bg-white/70 rounded-xl shadow p-3 flex flex-col items-start"
@@ -145,7 +169,7 @@ export default function ProfilePage({ userId: propUserId }) {
                 <div className="text-xs mt-2 text-gray-500 flex gap-2 flex-wrap">
                   {v.hashtags &&
                     Array.isArray(v.hashtags) &&
-                    v.hashtags.map((h, i) => (
+                    v.hashtags.map((h: string, i: number) => (
                       <span
                         key={i}
                         className="bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded"
