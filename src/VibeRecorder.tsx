@@ -29,11 +29,12 @@ export default function VibeRecorder({ onSent }) {
   const [withGeo, setWithGeo] = useState(true); // Géoloc cochée par défaut
   const [msg, setMsg] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+
+  // Typage pour TS
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timeoutId = useRef(null);
 
-  // Fonction pour l'effet paillettes
   function sparkle() {
     document.body.classList.add("sparkle");
     setTimeout(() => document.body.classList.remove("sparkle"), 1600);
@@ -60,7 +61,7 @@ export default function VibeRecorder({ onSent }) {
       .from("users_anonymous")
       .upsert([{ id: anonId }], { onConflict: "id" });
 
-    // Upload Storage
+    // Bucket bien nommé !
     const { error: storageError } = await supabase.storage
       .from("alapi-vibes")
       .upload(fileName, blob, { contentType: "audio/webm", upsert: false });
@@ -94,7 +95,7 @@ export default function VibeRecorder({ onSent }) {
       .select()
       .single();
 
-    // Gère l'erreur d'insert
+    // Erreur d'insertion
     if (insertError) {
       setUploading(false);
       setMsg("Erreur d'enregistrement en base : " + insertError.message);
@@ -106,7 +107,6 @@ export default function VibeRecorder({ onSent }) {
     try {
       new Audio("/ding.mp3").play();
     } catch (e) {}
-
     if (window.navigator.vibrate) window.navigator.vibrate([80, 24, 100]);
 
     setUploading(false);
@@ -151,7 +151,7 @@ export default function VibeRecorder({ onSent }) {
         if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
       }, 20000);
     } else {
-      mediaRecorderRef.current.stop();
+      if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
     }
   };
 
@@ -175,7 +175,6 @@ export default function VibeRecorder({ onSent }) {
       <div className="text-lg font-bold text-indigo-900 mt-2 mb-1 tracking-tight">
         {recording ? "Enregistrement..." : "Crée ta vibe !"}
       </div>
-
       {/* CHAMPS EN DESSOUS */}
       <div className="w-full flex flex-col gap-2 max-w-md mt-2">
         <input

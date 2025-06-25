@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 import { getAnonymousId } from "./utils/user";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function VibeRecorder({ onSent }) {
+export default function ReplyRecorder({ parentId, onSent }) {
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [hashtags, setHashtags] = useState("");
@@ -14,21 +14,23 @@ export default function VibeRecorder({ onSent }) {
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(true);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const timeoutId = useRef(null);
-  const intervalRef = useRef(null);
+
+  // ✅ Typage pour TS
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const timeoutId = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   // Upload
-  const handleUpload = async (blob) => {
+  const handleUpload = async (blob: Blob) => {
     setUploading(true);
     setMsg("");
     setError("");
-    let latitude = null,
-      longitude = null;
+    let latitude: number | null = null,
+      longitude: number | null = null;
     if (withGeo) {
       try {
-        const pos = await new Promise((res, rej) =>
+        const pos = await new Promise<GeolocationPosition>((res, rej) =>
           navigator.geolocation.getCurrentPosition(res, rej, { timeout: 7000 })
         );
         latitude = pos.coords.latitude;
@@ -43,7 +45,7 @@ export default function VibeRecorder({ onSent }) {
       .from("users_anonymous")
       .upsert([{ id: anonId }], { onConflict: "id" });
     const { error: uploadError } = await supabase.storage
-      .from("allapi-vibes")
+      .from("alapi-vibes") // <- BUCKET NAME CORRECT !
       .upload(fileName, blob, { contentType: "audio/webm", upsert: false });
     if (uploadError) {
       setUploading(false);
@@ -64,7 +66,7 @@ export default function VibeRecorder({ onSent }) {
         ville: ville || null,
         langue: langue || null,
         duration: null,
-        parent_id: null,
+        parent_id: parentId || null, // <-- C’est la différence clé avec VibeRecorder
       },
     ]);
     setUploading(false);
@@ -77,7 +79,7 @@ export default function VibeRecorder({ onSent }) {
     if (onSent) onSent();
     // 🎉 Mini effet paillettes
     document.body.classList.add("sparkle");
-    setTimeout(() => {
+    window.setTimeout(() => {
       setMsg("");
       document.body.classList.remove("sparkle");
     }, 1800);
@@ -98,11 +100,11 @@ export default function VibeRecorder({ onSent }) {
         });
         const mediaRecorder = new window.MediaRecorder(stream);
         audioChunksRef.current = [];
-        mediaRecorder.ondataavailable = (e) =>
+        mediaRecorder.ondataavailable = (e: BlobEvent) =>
           audioChunksRef.current.push(e.data);
         mediaRecorder.onstop = async () => {
-          clearTimeout(timeoutId.current);
-          clearInterval(intervalRef.current);
+          if (timeoutId.current) window.clearTimeout(timeoutId.current);
+          if (intervalRef.current) window.clearInterval(intervalRef.current);
           setProgress(0);
           const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
           await handleUpload(blob);
@@ -111,18 +113,22 @@ export default function VibeRecorder({ onSent }) {
         mediaRecorder.start();
         setRecording(true);
         let sec = 0;
-        intervalRef.current = setInterval(() => {
+        intervalRef.current = window.setInterval(() => {
           sec += 0.1;
           setProgress((sec / 20) * 100);
         }, 100);
-        timeoutId.current = setTimeout(() => {
-          if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
+        timeoutId.current = window.setTimeout(() => {
+          if (
+            mediaRecorderRef.current &&
+            mediaRecorderRef.current.state !== "inactive"
+          )
+            mediaRecorderRef.current.stop();
         }, 20000);
       } catch (e) {
         setError("⚠️ Impossible d'accéder au micro.");
       }
     } else {
-      mediaRecorderRef.current.stop();
+      if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
     }
   };
 
@@ -142,7 +148,7 @@ export default function VibeRecorder({ onSent }) {
             exit={{ opacity: 0, y: -18 }}
             transition={{ duration: 0.5 }}
           >
-            <span>🎤</span> Appuie sur le micro pour enregistrer ta vibe !
+            <span>🎤</span> Appuie sur le micro pour enregistrer ta vibe !
             <button
               className="ml-2 text-indigo-700 text-xs underline"
               onClick={() => setShowOnboarding(false)}
@@ -210,7 +216,7 @@ export default function VibeRecorder({ onSent }) {
         )}
       </motion.button>
       <div className="text-lg font-bold text-indigo-900 mt-2 mb-1 tracking-tight">
-        {recording ? "Enregistrement..." : "Crée ta vibe !"}
+        {recording ? "Enregistrement..." : "Crée ta vibe !"}
       </div>
       {/* CHAMPS EN DESSOUS */}
       <div className="w-full flex flex-col gap-2 max-w-md mt-2">
