@@ -1,18 +1,25 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { Link, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
+// TYPE du profil utilisateur
+type UserProfile = {
+  user_id: string;
+  avatar_url?: string;
+  pseudo?: string;
+};
+
 export default function FollowersPage() {
-  const { userId, tab } = useParams();
-  const [users, setUsers] = useState([]);
+  const { userId, tab } = useParams<{ userId: string; tab: string }>();
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Tab = followers | following
   useEffect(() => {
     async function fetch() {
       setLoading(true);
-      let ids = [];
+      let ids: string[] = [];
       if (tab === "followers") {
         // Qui ME suit
         const { data, error } = await supabase
@@ -24,7 +31,7 @@ export default function FollowersPage() {
           setLoading(false);
           return;
         }
-        ids = data.map((d) => d.follower_id);
+        ids = data.map((d: { follower_id: string }) => d.follower_id);
       } else {
         // Qui JE suis
         const { data, error } = await supabase
@@ -36,7 +43,7 @@ export default function FollowersPage() {
           setLoading(false);
           return;
         }
-        ids = data.map((d) => d.following_id);
+        ids = data.map((d: { following_id: string }) => d.following_id);
       }
       if (!ids || ids.length === 0) {
         setUsers([]);
@@ -47,7 +54,7 @@ export default function FollowersPage() {
         .from("profils")
         .select("*")
         .in("user_id", ids);
-      setUsers(profils || []);
+      setUsers((profils || []) as UserProfile[]);
       setLoading(false);
     }
     fetch();

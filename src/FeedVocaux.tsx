@@ -1,26 +1,52 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { getAnonymousId } from "./utils/user";
 import { Link } from "react-router-dom";
 import ReplyRecorder from "./ReplyRecorder";
 import { motion } from "framer-motion";
 
-export default function FeedVocaux({ onFilteredVocaux }) {
-  const [vocaux, setVocaux] = useState([]);
-  const [loading, setLoading] = useState(true);
+// Types
+type Profil = {
+  pseudo?: string;
+  avatar_url?: string;
+};
+type Vocal = {
+  id: string;
+  url: string;
+  created_at: string;
+  ville?: string;
+  langue?: string;
+  hashtags?: string[];
+  user_id: string;
+  profils?: Profil;
+  transcription?: string;
+  latitude?: number;
+  longitude?: number;
+  parent_id?: string;
+};
+
+type FeedVocauxProps = {
+  onFilteredVocaux?: (vocaux: Vocal[]) => void;
+};
+
+export default function FeedVocaux({ onFilteredVocaux }: FeedVocauxProps) {
+  const [vocaux, setVocaux] = useState<Vocal[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const userId = getAnonymousId();
-  const [likes, setLikes] = useState({});
-  const [favorites, setFavorites] = useState({});
-  const [likeCounts, setLikeCounts] = useState({});
-  const [favoriteCounts, setFavoriteCounts] = useState({});
-  const [error, setError] = useState(null);
-  const [isFlagged, setIsFlagged] = useState({});
+  const [likes, setLikes] = useState<Record<string, boolean>>({});
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [favoriteCounts, setFavoriteCounts] = useState<Record<string, number>>(
+    {}
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [isFlagged, setIsFlagged] = useState<Record<string, boolean>>({});
 
   // Filtres
-  const [search, setSearch] = useState("");
-  const [filterHashtag, setFilterHashtag] = useState("");
-  const [filterVille, setFilterVille] = useState("");
-  const [filterLangue, setFilterLangue] = useState("");
+  const [search, setSearch] = useState<string>("");
+  const [filterHashtag, setFilterHashtag] = useState<string>("");
+  const [filterVille, setFilterVille] = useState<string>("");
+  const [filterLangue, setFilterLangue] = useState<string>("");
 
   // Fetch vocaux + profils
   useEffect(() => {
@@ -38,7 +64,7 @@ export default function FeedVocaux({ onFilteredVocaux }) {
           )
           .order("created_at", { ascending: false });
         if (error) throw error;
-        setVocaux(data || []);
+        setVocaux((data || []) as Vocal[]);
       } catch (err) {
         setError("Erreur de chargement des vibes.");
       }
@@ -53,8 +79,8 @@ export default function FeedVocaux({ onFilteredVocaux }) {
       const { data: sig } = await supabase
         .from("signalements")
         .select("vocal_id");
-      const flags = {};
-      (sig || []).forEach((s) => {
+      const flags: Record<string, boolean> = {};
+      (sig || []).forEach((s: { vocal_id: string }) => {
         flags[s.vocal_id] = true;
       });
       setIsFlagged(flags);
@@ -69,7 +95,11 @@ export default function FeedVocaux({ onFilteredVocaux }) {
         .from("vocaux_likes")
         .select("vocal_id")
         .eq("user_id", userId);
-      setLikes(Object.fromEntries((data || []).map((l) => [l.vocal_id, true])));
+      setLikes(
+        Object.fromEntries(
+          (data || []).map((l: { vocal_id: string }) => [l.vocal_id, true])
+        )
+      );
     }
     async function fetchUserFavorites() {
       const { data } = await supabase
@@ -77,7 +107,9 @@ export default function FeedVocaux({ onFilteredVocaux }) {
         .select("vocal_id")
         .eq("user_id", userId);
       setFavorites(
-        Object.fromEntries((data || []).map((f) => [f.vocal_id, true]))
+        Object.fromEntries(
+          (data || []).map((f: { vocal_id: string }) => [f.vocal_id, true])
+        )
       );
     }
     fetchUserLikes();
@@ -88,8 +120,8 @@ export default function FeedVocaux({ onFilteredVocaux }) {
   useEffect(() => {
     async function fetchLikeCounts() {
       const { data } = await supabase.from("vocaux_likes").select("vocal_id");
-      const counts = {};
-      (data || []).forEach((l) => {
+      const counts: Record<string, number> = {};
+      (data || []).forEach((l: { vocal_id: string }) => {
         counts[l.vocal_id] = (counts[l.vocal_id] || 0) + 1;
       });
       setLikeCounts(counts);
@@ -98,8 +130,8 @@ export default function FeedVocaux({ onFilteredVocaux }) {
       const { data } = await supabase
         .from("vocaux_favorites")
         .select("vocal_id");
-      const counts = {};
-      (data || []).forEach((f) => {
+      const counts: Record<string, number> = {};
+      (data || []).forEach((f: { vocal_id: string }) => {
         counts[f.vocal_id] = (counts[f.vocal_id] || 0) + 1;
       });
       setFavoriteCounts(counts);
@@ -109,7 +141,7 @@ export default function FeedVocaux({ onFilteredVocaux }) {
   }, [vocaux.length, likes, favorites]);
 
   // Like/Favori avec son
-  async function toggleLike(vocalId) {
+  async function toggleLike(vocalId: string) {
     if (likes[vocalId]) {
       await supabase
         .from("vocaux_likes")
@@ -128,9 +160,13 @@ export default function FeedVocaux({ onFilteredVocaux }) {
       .from("vocaux_likes")
       .select("vocal_id")
       .eq("user_id", userId);
-    setLikes(Object.fromEntries((data || []).map((l) => [l.vocal_id, true])));
+    setLikes(
+      Object.fromEntries(
+        (data || []).map((l: { vocal_id: string }) => [l.vocal_id, true])
+      )
+    );
   }
-  async function toggleFavorite(vocalId) {
+  async function toggleFavorite(vocalId: string) {
     if (favorites[vocalId]) {
       await supabase
         .from("vocaux_favorites")
@@ -150,7 +186,9 @@ export default function FeedVocaux({ onFilteredVocaux }) {
       .select("vocal_id")
       .eq("user_id", userId);
     setFavorites(
-      Object.fromEntries((data || []).map((f) => [f.vocal_id, true]))
+      Object.fromEntries(
+        (data || []).map((f: { vocal_id: string }) => [f.vocal_id, true])
+      )
     );
   }
 
@@ -182,6 +220,7 @@ export default function FeedVocaux({ onFilteredVocaux }) {
 
   useEffect(() => {
     if (onFilteredVocaux) onFilteredVocaux(filteredVocaux);
+    // eslint-disable-next-line
   }, [JSON.stringify(filteredVocaux)]);
 
   // UI FEED
@@ -426,7 +465,7 @@ export default function FeedVocaux({ onFilteredVocaux }) {
 }
 
 // Fonction fake de transcription IA à remplacer par ta vraie API
-async function transcribeVocal(url) {
+async function transcribeVocal(url: string): Promise<string> {
   // Ici tu mets l'appel API réelle
   return "Ceci est une transcription automatique du vocal (exemple).";
 }

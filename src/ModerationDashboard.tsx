@@ -3,8 +3,37 @@ import { supabase } from "./supabaseClient";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
+// TYPES
+type Profil = {
+  pseudo?: string;
+  avatar_url?: string;
+};
+
+type Vocal = {
+  id: string;
+  url: string;
+  created_at?: string;
+  transcription?: string;
+  user_id?: string;
+  parent_id?: string;
+  profils?: Profil;
+};
+
+type User = {
+  pseudo?: string;
+};
+
+type Signalement = {
+  id: string;
+  created_at: string;
+  user_id: string;
+  vocal_id: string;
+  vocaux?: Vocal;
+  users?: User;
+};
+
 export default function ModerationDashboard() {
-  const [signalements, setSignalements] = useState([]);
+  const [signalements, setSignalements] = useState<Signalement[]>([]);
   const [loading, setLoading] = useState(true);
 
   // On charge tous les vocaux signalés, qui existent encore
@@ -26,14 +55,14 @@ export default function ModerationDashboard() {
         )
         .order("created_at", { ascending: false });
 
-      setSignalements(data || []);
+      setSignalements((data || []) as Signalement[]);
       setLoading(false);
     }
     fetchSignalements();
   }, []);
 
   // Suppression d’un vocal (en DB et storage)
-  async function supprimerVocal(vocal) {
+  async function supprimerVocal(vocal: Vocal) {
     if (!window.confirm("Supprimer ce vocal définitivement ?")) return;
 
     // Supprime du storage
@@ -84,7 +113,8 @@ export default function ModerationDashboard() {
                     {s.vocaux.profils?.pseudo || "Profil"}
                   </span>
                   <span className="text-xs ml-4 text-gray-400">
-                    Posté le {new Date(s.vocaux.created_at).toLocaleString()}
+                    Posté le{" "}
+                    {new Date(s.vocaux.created_at || "").toLocaleString()}
                   </span>
                 </div>
                 <audio
@@ -116,7 +146,7 @@ export default function ModerationDashboard() {
                     Voir profil
                   </Link>
                   <button
-                    onClick={() => supprimerVocal(s.vocaux)}
+                    onClick={() => supprimerVocal(s.vocaux!)}
                     className="bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold shadow"
                   >
                     Supprimer ce vocal

@@ -6,10 +6,28 @@ import VibeRecorder from "./VibeRecorder";
 import { supabase } from "./supabaseClient";
 import { getAnonymousId } from "./utils/user";
 
-// ---- Fonction de pondération ----
-function shuffleWeighted(vocaux, city, affHashtags, affLangues) {
+type Profil = {
+  pseudo?: string;
+  avatar_url?: string;
+};
+type Vocal = {
+  id: string;
+  url: string;
+  ville?: string;
+  langue?: string;
+  hashtags?: string[];
+  created_at: string;
+  profils?: Profil;
+};
+
+function shuffleWeighted(
+  vocaux: Vocal[],
+  city: string,
+  affHashtags: string[],
+  affLangues: string[]
+): Vocal[] {
   return vocaux
-    .map((v) => {
+    .map((v: Vocal) => {
       let score = 1;
       if (v.ville && city && v.ville.toLowerCase() === city.toLowerCase())
         score += 8;
@@ -27,25 +45,24 @@ function shuffleWeighted(vocaux, city, affHashtags, affLangues) {
         score += 2;
       return { ...v, _weight: score };
     })
-    .flatMap((v) => Array(v._weight).fill(v))
+    .flatMap((v: any) => Array(v._weight).fill(v))
     .sort(() => Math.random() - 0.5)
     .filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i);
 }
 
 export default function ExplorePage() {
-  // ---- États principaux ----
-  const [filteredVocauxFeed, setFilteredVocauxFeed] = useState([]);
-  const [filteredVocauxSwipe, setFilteredVocauxSwipe] = useState([]);
-  const [rawVocaux, setRawVocaux] = useState([]);
-  const [myCity, setMyCity] = useState("");
-  const [affinityHashtags, setAffinityHashtags] = useState([]);
-  const [affinityLangues, setAffinityLangues] = useState([]);
-  const [showMap, setShowMap] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [swipeMode, setSwipeMode] = useState(() => {
+  const [filteredVocauxFeed, setFilteredVocauxFeed] = useState<Vocal[]>([]);
+  const [filteredVocauxSwipe, setFilteredVocauxSwipe] = useState<Vocal[]>([]);
+  const [rawVocaux, setRawVocaux] = useState<Vocal[]>([]);
+  const [myCity, setMyCity] = useState<string>("");
+  const [affinityHashtags, setAffinityHashtags] = useState<string[]>([]);
+  const [affinityLangues, setAffinityLangues] = useState<string[]>([]);
+  const [showMap, setShowMap] = useState<boolean>(false);
+  const [index, setIndex] = useState<number>(0);
+  const [swipeMode, setSwipeMode] = useState<boolean>(() => {
     return localStorage.getItem("swipeMode") === "true";
   });
-  const feedRef = useRef(null);
+  const feedRef = useRef<HTMLDivElement | null>(null);
 
   // ---- Récupère les affinités user ----
   useEffect(() => {
@@ -65,20 +82,22 @@ export default function ExplorePage() {
         .select("vocal_id")
         .eq("user_id", myId);
       if (liked && liked.length > 0) {
-        const ids = liked.map((l) => l.vocal_id);
+        const ids = liked.map((l: { vocal_id: string }) => l.vocal_id);
         const { data: likedVocaux } = await supabase
           .from("vocaux")
           .select("hashtags, langue")
           .in("id", ids);
         setAffinityHashtags([
           ...new Set(
-            likedVocaux.flatMap((v) =>
+            (likedVocaux || []).flatMap((v: Vocal) =>
               Array.isArray(v.hashtags) ? v.hashtags : []
             )
           ),
         ]);
         setAffinityLangues([
-          ...new Set(likedVocaux.map((v) => v.langue).filter((l) => !!l)),
+          ...new Set(
+            (likedVocaux || []).map((v: Vocal) => v.langue).filter((l) => !!l)
+          ),
         ]);
       }
     }
@@ -86,7 +105,7 @@ export default function ExplorePage() {
   }, []);
 
   // ---- Quand FeedVocaux change, on sépare feed/swipe ----
-  function handleFeedSync(feed) {
+  function handleFeedSync(feed: Vocal[]) {
     setRawVocaux(feed || []);
     setFilteredVocauxFeed(feed || []);
     setFilteredVocauxSwipe(
@@ -119,10 +138,9 @@ export default function ExplorePage() {
   }
   useEffect(() => {
     setIndex(0);
-    localStorage.setItem("swipeMode", swipeMode);
+    localStorage.setItem("swipeMode", swipeMode ? "true" : "false");
   }, [swipeMode, filteredVocauxSwipe.length]);
 
-  // ---- Rafraîchit le feed après envoi ----
   function refetchFeed() {
     setShowMap(false);
     setTimeout(() => {
@@ -219,14 +237,16 @@ export default function ExplorePage() {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {Array.isArray(filteredVocauxSwipe[index].hashtags) &&
-                      filteredVocauxSwipe[index].hashtags.map((h, i) => (
-                        <span
-                          key={i}
-                          className="bg-indigo-800/60 text-white px-2 rounded text-xs"
-                        >
-                          #{h}
-                        </span>
-                      ))}
+                      filteredVocauxSwipe[index].hashtags.map(
+                        (h: string, i: number) => (
+                          <span
+                            key={i}
+                            className="bg-indigo-800/60 text-white px-2 rounded text-xs"
+                          >
+                            #{h}
+                          </span>
+                        )
+                      )}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
                     {new Date(
