@@ -1,0 +1,89 @@
+import React, { useRef, useState } from "react";
+import { supabase } from "./supabaseClient";
+import { getAnonymousId } from "./utils/user";
+
+export default function DmSend({ recipientId: propRecipient }) {
+  const [recording, setRecording] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [recipient, setRecipient] = useState(propRecipient || "");
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  // Démarre/stop l'enregistrement
+  const toggleRecording = async () => {
+    if (!recording) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new window.MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mediaRecorder.ondataavailable = (e) => {
+        audioChunksRef.current.push(e.data);
+      };
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        await handleUpload(blob);
+      };
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start();
+      setRecording(true);
+      setTimeout(() => {
+        if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
+      }, 20000); // max 20s
+    } else {
+      mediaRecorderRef.current.stop();
+      setRecording(false);
+    }
+  };
+
+  const handleUpload = async (blob) => {
+    if (!recipient) return alert("Spécifie un destinataire !");
+    setUploading(true);
+    const fileName = `dms/${Date.now()}_${getAnonymousId()}.webm`;
+    const { error } = await supabase.storage
+      .from("alapi-vibes")
+      .upload(fileName, blob, {
+        contentType: "audio/webm",
+        upsert: false,
+      });
+    if (error) {
+      setUploading(false);
+      alert("Erreur upload: " + error.message);
+      return;
+    }
+    const url = `https://gkbcjhypgsvpipjeginw.supabase.co/storage/v1/object/public/alapi-vibes/${fileName}`;
+    await supabase.from("messages").insert([
+      {
+        sender_id: getAnonymousId(),
+        recipient_id: recipient,
+        url,
+      },
+    ]);
+    setUploading(false);
+    setRecording(false);
+    alert("✅ Message vocal envoyé !");
+  };
+
+  return (
+    <div className="flex flex-col gap-2 bg-white/60 rounded-xl p-3 mb-2">
+      {!propRecipient && (
+        <input
+          className="border p-1 rounded"
+          placeholder="ID destinataire (colle son ID anonyme)"
+          value={recipient}
+          onChange={(e) => setRecipient(e.target.value)}
+        />
+      )}
+      <button
+        className={`rounded-full px-4 py-1 text-white font-bold shadow transition ${
+          recording
+            ? "bg-red-500 animate-pulse"
+            : "bg-indigo-600 hover:bg-indigo-700"
+        }`}
+        onClick={toggleRecording}
+        disabled={uploading}
+      >
+        {recording ? "🛑 Stop" : "🎙️ Envoyer un DM vocal"}
+      </button>
+      {uploading && <span className="text-xs text-yellow-500">⏳ Upload…</span>}
+    </div>
+  );
+}

@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Effet paillettes à l’envoi d’une vibe */
+.sparkle::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("https://svgshare.com/i/whp.svg"); /* Change pour ton effet si tu veux ! */
+  background-size: cover;
+  animation: sparklefade 1.5s forwards;
+  opacity: 0.45;
+}
+@keyframes sparklefade {
+  0% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
